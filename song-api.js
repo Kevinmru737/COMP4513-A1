@@ -215,7 +215,18 @@ app.get("/api/songs/genre/:ref", async (req, res) => {
 app.get("/api/playlists", async (req, res) => {
   const { data, error } = await supabase
     .from("playlists")
-    .select(`playlist_id`)
+    .select(
+      `
+      playlist_id,
+      songs (
+        song_id,
+        title,
+        year,
+        artists (artist_name),
+        genres (genre_name)
+      )
+    `,
+    )
     .order("playlist_id", { ascending: true });
   if (error || data.length === 0) return notFound(res);
   res.json(data);
