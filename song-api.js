@@ -33,7 +33,7 @@ app.get("/api/artists", async (req, res) => {
       `artist_id, artist_name, artist_image_url, spotify_url, spotify_desc, types (type_name)`,
     )
     .order("artist_name", { ascending: true });
-  if (error) return res.json({ error });
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -43,7 +43,8 @@ app.get("/api/artists/:ref", async (req, res) => {
     .from("artists")
     .select(`artist_id, artist_name, types:types (type_name)`)
     .eq("artist_id", req.params.ref);
-  if (error) return notFound(res, `Artist ${req.params.ref} not found.`);
+  if (error || data.length === 0)
+    return notFound(res, `Artist ${req.params.ref} not found.`);
   res.json(data);
 });
 
@@ -55,9 +56,7 @@ app.get("/api/artists/averages/:ref", async (req, res) => {
       `bpm, energy, danceability, loudness, liveness, valence, duration, acousticness, speechiness, popularity`,
     )
     .eq("artist_id", req.params.ref);
-  console.log("data:", data);
-  console.log("error:", error);
-  if (error)
+  if (error || data.length === 0)
     return notFound(res, `No songs found for artist ${req.params.ref}.`);
   const avg = (field) =>
     parseFloat(
@@ -85,7 +84,7 @@ app.get("/api/artists/averages/:ref", async (req, res) => {
 // /api/genres
 app.get("/api/genres", async (req, res) => {
   const { data, error } = await supabase.from("genres").select();
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -95,7 +94,7 @@ app.get("/api/songs", async (req, res) => {
     .from("songs")
     .select(SONG_SELECT)
     .order("title", { ascending: true });
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -134,7 +133,7 @@ app.get("/api/songs/sort/:order", async (req, res) => {
   }
 
   const { data, error } = await query;
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -145,7 +144,7 @@ app.get("/api/songs/:ref", async (req, res) => {
     .select(SONG_SELECT)
     .eq("song_id", req.params.ref)
     .single();
-  if (error) return notFound(res, `Song ${req.params.ref} not found.`);
+  if (error || !data) return notFound(res, `Song ${req.params.ref} not found.`);
   res.json(data);
 });
 
@@ -155,10 +154,10 @@ app.get("/api/songs/search/begin/:substring", async (req, res) => {
     .from("songs")
     .select(SONG_SELECT)
     .ilike("title", `${req.params.substring}%`);
-  if (error)
+  if (error || data.length === 0)
     return notFound(
       res,
-      `No songs found beginning with "${req.params.substring}".`,
+      `No songs found beginning with '${req.params.substring}'.`,
     );
   res.json(data);
 });
@@ -169,10 +168,10 @@ app.get("/api/songs/search/any/:substring", async (req, res) => {
     .from("songs")
     .select(SONG_SELECT)
     .ilike("title", `%${req.params.substring}%`);
-  if (error)
+  if (error || data.length === 0)
     return notFound(
       res,
-      `No songs found containing "${req.params.substring}".`,
+      `No songs found containing '${req.params.substring}'.`,
     );
   res.json(data);
 });
@@ -195,7 +194,7 @@ app.get("/api/songs/artist/:ref", async (req, res) => {
     .select(SONG_SELECT)
     .eq("artist_id", req.params.ref)
     .order("title", { ascending: true });
-  if (error)
+  if (error || data.length === 0)
     return notFound(res, `No songs found for artist ${req.params.ref}.`);
   res.json(data);
 });
@@ -207,8 +206,18 @@ app.get("/api/songs/genre/:ref", async (req, res) => {
     .select(SONG_SELECT)
     .eq("genre_id", req.params.ref)
     .order("title", { ascending: true });
-  if (error)
+  if (error || data.length === 0)
     return notFound(res, `No songs found for genre ${req.params.ref}.`);
+  res.json(data);
+});
+
+// /api/playlists
+app.get("/api/playlists", async (req, res) => {
+  const { data, error } = await supabase
+    .from("playlists")
+    .select(`playlist_id`)
+    .order("playlist_id", { ascending: true });
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -229,7 +238,8 @@ app.get("/api/playlists/:ref", async (req, res) => {
     `,
     )
     .eq("playlist_id", req.params.ref);
-  if (error) return notFound(res, `Playlist ${req.params.ref} not found.`);
+  if (error || data.length === 0)
+    return notFound(res, `Playlist ${req.params.ref} not found.`);
   res.json(data);
 });
 
@@ -241,12 +251,11 @@ app.get("/api/mood/dancing", async (req, res) => {
     .select(SONG_SELECT)
     .order("danceability", { ascending: false })
     .limit(limit);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
 // /api/mood/dancing/:ref
-
 app.get("/api/mood/dancing/:ref", async (req, res) => {
   const limit = rangeCheck(req.params.ref);
   const { data, error } = await supabase
@@ -254,7 +263,7 @@ app.get("/api/mood/dancing/:ref", async (req, res) => {
     .select(SONG_SELECT)
     .order("danceability", { ascending: false })
     .limit(limit);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -266,7 +275,7 @@ app.get("/api/mood/happy", async (req, res) => {
     .select(SONG_SELECT)
     .order("valence", { ascending: false })
     .limit(limit);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -277,7 +286,7 @@ app.get("/api/mood/happy/:ref", async (req, res) => {
     .select(SONG_SELECT)
     .order("valence", { ascending: false })
     .limit(limit);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   res.json(data);
 });
 
@@ -285,7 +294,7 @@ app.get("/api/mood/happy/:ref", async (req, res) => {
 app.get("/api/mood/coffee", async (req, res) => {
   const limit = 20;
   const { data, error } = await supabase.from("songs").select(SONG_SELECT);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   const sorted = data
     .map((s) => ({
       ...s,
@@ -300,7 +309,7 @@ app.get("/api/mood/coffee", async (req, res) => {
 app.get("/api/mood/coffee/:ref", async (req, res) => {
   const limit = rangeCheck(req.params.ref);
   const { data, error } = await supabase.from("songs").select(SONG_SELECT);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   const sorted = data
     .map((s) => ({
       ...s,
@@ -316,7 +325,7 @@ app.get("/api/mood/coffee/:ref", async (req, res) => {
 app.get("/api/mood/studying", async (req, res) => {
   const limit = 20;
   const { data, error } = await supabase.from("songs").select(SONG_SELECT);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   const sorted = data
     .map((s) => ({ ...s, _score: s.energy * s.speechiness }))
     .sort((a, b) => a._score - b._score)
@@ -328,7 +337,7 @@ app.get("/api/mood/studying", async (req, res) => {
 app.get("/api/mood/studying/:ref", async (req, res) => {
   const limit = rangeCheck(req.params.ref);
   const { data, error } = await supabase.from("songs").select(SONG_SELECT);
-  if (error) return notFound(res);
+  if (error || data.length === 0) return notFound(res);
   const sorted = data
     .map((s) => ({ ...s, _score: s.energy * s.speechiness }))
     .sort((a, b) => a._score - b._score)
